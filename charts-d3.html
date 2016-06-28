@@ -3,204 +3,35 @@
     <meta charset="utf-8">
     <title>Perú election explorer</title>
     <style>
-      .region {
-        display: inline-block;
-        padding: 2em;
+      body {
+          font: 10px sans-serif;
       }
-      .header {
-        text-align: center;
-        margin-block-end: 0;
-        font-size: 1.5em;
+      svg {
+          padding: 10px 0 0 10px;
       }
-      .subheader {
-        text-align: center;
-        margin-block-start: 0.2em;
-        margin-block-end: 0.2em;
-        font-size: 1em;
+      .legend {
+          vertical-align: top;
       }
-      .chart_holder { display: inline-block; }
+      .label {
+          text-anchor: middle;
+      }
+      .label-name {
+          font-weight: bold;
+      }
+
     </style>
   </head>
   <body>
-    <script src="https://d3js.org/d3.v4.0.0-alpha.15.js"></script>
-    <script>
-
-      // Dist is a vector of objects each of which contain (at least):
-      //   * count: an integer, representing the number of votes
-      //   * alloc: an integer, the allocation. If set on entry, is used
-      //   *        as the initial allocation.
-      // N is a magnitude.
-      // The function returns the calculated quotient ("cifra repartidora") and
-      // fills in the `alloc` fields.
-      // The dist array will be reordered in an unpredictable way. If order is
-      // important, make a copy.
-      // If the pre-existing allocations are greater than equal to N, then
-      // the function returns 0. Otherwise, it returns the largest possible
-      // quotient.
-function largestQuotient(q, N, dist, count, alloc) {
-  dist.forEach(a => { if (a[alloc]) N -= a[alloc];
-                      else a[alloc] = 0;
-                    });
-  if (N <= 0) return 0;
-  dist.sort((a, b) => b[count] * q(a[alloc]) - a[count] * q(b[alloc]));
-  var lead;
-  for (var i = 0; i < N; ++i) {
-    lead = dist[0];
-    ++lead[alloc];
-    var j = 1;
-    while (j < dist.length && 
-           dist[j][count] * q(lead[alloc]) > lead[count] * q(dist[j][alloc])) {
-      dist[j - 1] = dist[j];
-      ++j;
-    }
-    dist[j - 1] = lead;
-  }
-  return lead[count] / lead[alloc];
-}
-function dhondt(N, dist, count="count", alloc="alloc") {
-  return largestQuotient(i=>i+1, N, dist, count, alloc); 
-}
-function sainteLague(N, dist, count="count", alloc="alloc") {
-  return largestQuotient(i=>2*i+1, N, dist, count, alloc);
-}
-function hare(N, dist, count="count", alloc="alloc") {
-  var sum = dist.reduce((p,c) => p + c[count], 0);
-  var adivrem = dist.map(a => { let n = a[count] * N;
-                                let r = n % sum;
-                                return [a, (n - r) / sum, r] });
-  var need = N - adivrem.reduce((p,c) => p + c[1], 0);
-  adivrem.sort((a, b) => b[2] - a[2]);
-  adivrem.forEach((adr, i) => adr[0][alloc] = adr[1] + (i < need));
-  return sum / N;
-}
-// Todo: class Alloc
-class Vote {
-  constructor(district = null,
-              parties = [],
-              ebn = [null, null, null],
-              votes = []) {
-    this.district = district;
-    this.electors = ebn[0];
-    this.blank = ebn[1];
-    this.spoiled = ebn[2];
-    this.valid = votes.reduce((a,b)=>a+b, 0);
-    this.alloc = parties.map(
-         (party, i) => ({ party: party, count: votes[i], alloc: 0}));
-  }
-  accum(other) {
-    this.electors += other.electors;
-    this.blank += other.blank;
-    this.spoiled += other.spoiled;
-    this.valid += other.valid;
-    var otheralloc = other.alloc;
-    if (this.alloc.length == otheralloc.length && 
-        this.alloc.every((a, i)=>a.party === otheralloc[i].party))
-      this.alloc.forEach((a, i)=>{ a.count += otheralloc[i].count;
-                                   a.alloc += otheralloc[i].alloc;});
-    else {
-      var pmap = new Map;
-      this.alloc.forEach(a => pmap.set(a.party, a));
-      otheralloc.forEach(
-        o => { if (pmap.has(o.party)) {
-                 var a = pmap.get(o.party);
-                 a.count += o.count;
-                 a.alloc += o.alloc;
-               } else {
-                 this.alloc.push({party: o.party, count: o.count, alloc: o.alloc});
-               }
-             });
-    }
-    return this;
-  }
-}
-  // Constructor takes an array of parties and then an array of vote arrays.
-class Election {
-  constructor(parties, results) {       
-    this.parties = parties;
-    this.results = results.map(r=>new Vote(r[0], parties, r[1], r[2]));
-  }
-}
-    </script>
+    <script src="https://d3js.org/d3.v4.0.0-alpha.15.js" type="text/javascript"></script>
+    <script src="apportion.js" type="text/javascript"></script>
     <script type="text/javascript">
 // variables. These should map to a form somewhere
 var method = dhondt; // or sainteLague
 var threshold = 0.05;
 // TODO: apportionment method
 var total_magnitude = 130;
-
 var other_threshold = 0.01; // Parties whose vote is less than this are "other".
-    </script>
-    <script>
-// Data: maybe should go into a file or something.
-cong2016 = new Election([
-  { onpe: "ACCION POPULAR", name: "Acción Popular", colour: "black"},
-  { onpe: "ALIANZA PARA EL PROGRESO DEL PERU", name: "APP", colour: "#0029cf"},
-  { onpe: "ALIANZA POPULAR", name: "APRA+PPC", colour: "#1eff1f"},
-  { onpe: "DEMOCRACIA DIRECTA", name: "Democracia Directa", colour: "#fdfe02"},
-  { onpe: "EL FRENTE AMPLIO POR JUSTICIA, VIDA Y LIBERTAD", name: "Frente Amplio", colour: "red"},
-  { onpe: "FRENTE ESPERANZA", name: "Frente Esperanza"},
-  { onpe: "FUERZA POPULAR", name: "Fuerza Popular", colour: "#fe6500"},
-  { onpe: "PARTIDO POLITICO ORDEN", name: "Orden"},
-  { onpe: "PERU POSIBLE", name: "Perú Posible"},
-  { onpe: "PERUANOS POR EL KAMBIO", name: "PPK", colour: "#fe00dc"},
-  { onpe: "PROGRESANDO PERU", name: "Progresando Perú"}
-], [
-  ["Amazonas", [270175, 36837, 37727],
-     [6233, 10220, 11992, 8565, 14845, null, 51067, null, null, 14489, 1531]],
-  ["Áncash", [831235, 116102, 145961],
-     [15913, 58852, 26833, null, 57657, 4534, 155328, 1139, 26898, 48426, null]],
-  ["Apurimac", [284436, 39831, 38688],
-     [10251, 12716, 8581, 5072, 55031, null, 44046, null, 970, 3849, null]],
-  ["Arequipa", [1035654, 98935, 190444],
-     [80005, 61625, 35737, 29610, 124083, null, 122312, 3403, 9467, 135696, 4658]],
-  ["Ayacucho", [421956, 50858, 66841],
-     [6429, 11711, 10434, 4438, 86292, null, 69435, 283, 3202, 15805, 592]],
-  ["Cajamarca", [1009775, 126273, 123463],
-     [24104, 47304, 16611, 208935, 43201, 2239, 153384, 468, 6106, 27771, null]],
-  ["Callao", [743928, 58341, 162244],
-     [28929, 34325, 41931, 5032, 36538, 6198, 160208, 3647, 9414, 97208, null]],
-  ["Cusco", [915199, 121475, 149306],
-     [54811, 58292, 40180, 28887, 152450, 9490, 82529, 4274, 6937, 34473, 2123]],
-  ["Huancavelica", [274440, 34476, 41785],
-     [3603, 10015, 3212, 3118, 46386, null, 42361, 334, 1372, 14725, null]],
-  ["Huánuco", [525051, 67818, 90371],
-     [11076, 22827, 11401, null, 54641, 2032, 81549, 445, 9905, 39529, 978]],
-  ["Ica", [583777, 61272, 109225],
-     [30706, 26235, 33791, 5758, 41869, 4014, 139927, null, 10056, 46162, 1478]],
-  ["Junín", [875674, 97406, 164050],
-     [35481, 49502, 36756, 12950, 70653, null, 167666, null, 10386, 62636, null]],
-  ["La Libertad", [1292488, 111955, 217230],
-     [36884, 163243, 117650, 21049, 44894, 6264, 278611, 3504, 6323, 58106, null]],
-  ["Lambayeque", [889355, 85730, 152799],
-     [35371, 50968, 62943, 14233, 44327, 6602, 219878, 5605, 4730, 57850, null]],
-  ["Lima Metropolitano + Extranjero", [7769473, 585025, 1570840],
-     [331148, 239894, 379539, 42915, 415738, 63821, 1595499, 37970, 131285, 1072000, null]],
-  ["Lima Provincias", [696209, 70467, 138172],
-     [21621, 24918, 22502, 8778, 47585, 4720, 198838, 1668, 7133, 46513, null]],
-  ["Loreto", [630498, 87957, 99170],
-     [26124, 15080, 28984, 3580, 27504, 2286, 101564, null, 9507, 40652, null]],
-  ["Madre de Dios", [95538, 10828, 24207],
-     [1925, 5983, 1633, 1806, 5409, null, 14452, null, 4463, 5894, 644]],
-  ["Moquegua", [133777, 15227, 23003],
-     [3745, 12368, 6571, 1205, 13649, 1698, 15799, 553, 1688, 20356, null]],
-  ["Pasco", [185057, 23677, 33029],
-     [6991, 12533, 7510, 1121, 8466, null, 31901, null, 2024, 13361, null]],
-  ["Piura", [1266557, 150354, 218326],
-     [34526, 70116, 45341, 24019, 83940, 5675, 341712, 1501, 9795, 60899, 1808]],
-  ["Puno", [858504, 118925, 150494],
-     [19296, 30368, 21113, 80748, 154679, 13864, 100312, 3680, 7682, 32746, null]],
-  ["San Martín", [566666, 130228, 84037],
-     [21466, 47462, 17977, 8405, null, 3095, 116319, null, 2099, 15608, null]],
-  ["Tacna", [253524, 25056, 43506],
-     [18084, 10283, 4710, 8077, 52910, 3102, 30953, null, 1095, 20571, 851]],
-  ["Tumbes", [156120, 21250, 27393],
-     [6480, 6395, 12432, null, null, null, 49052, null, 1366, 5872, null]],
-  ["Ucayali", [336888, 44717, 63891],
-     [6532, 32447, 7371, null, 17305, null, 66375, null, 3077, 16513, null]]
-])
-    </script>
-    <script>
-var data = cong2016.results;
+
 var otro = { name: "Otros", colour: "#b0b0b0" };
 
 var radius = d3.scaleSqrt()
@@ -215,111 +46,119 @@ var arc = d3.arc().padRadius(50);
 // TODO: remove otro from the data, or create a new vector every time. Or
 // something.
 
-// The apportionment rule is "give every constituency one representative
-// and then apportion the rest proportionally." Clearly, that gives a
-// noticeable apportionment bias to the small constituencies.
-// TODO: modify hare to allow for both the freebie and the minimum strategies.
-hare(total_magnitude - data.length, data, "electors", "magnitude")
-data.forEach(v => ++v.magnitude);
+d3.json("cong2016.json", (error, election) => {
+  if (error) throw(error);
+  data = election.distritos.map(
+    distrito => new Vote(distrito[0],
+                         election.partidos,
+                         distrito[1],
+                         distrito[2]))
+  // The apportionment rule is "give every constituency one representative
+  // and then apportion the rest proportionally." Clearly, that gives a
+  // noticeable apportionment bias to the small constituencies.
+  // TODO: modify hare to allow for both the freebie and the minimum strategies.
+  hare(total_magnitude - data.length, data, "electors", "magnitude")
+  data.forEach(v => ++v.magnitude);
 
-// Sum the votes for all constituencies in order to apply the threshold.
-// Peruvian rules technically require that a complete allocation be
-// without the threshold because the threshold applies to either
-// popular vote or number of elected representatives. The second
-// barrier has never been achieved, and indeed it would be difficult,
-// but really we should do this correctly.
-var total = data.reduce((p,c)=>p.accum(c), new Vote("Total"))
-total.alloc.forEach(a => {
-  a.party.allocate = a.count >= total.valid * threshold;
-  a.party.isOther = a.count < total.valid * other_threshold;
-});
-total.alloc.sort((a,b) => b.count - a.count);
-
-data.forEach(v => {
-  v.alloc.forEach(a => a.alloc = 0);
-  method(v.magnitude, v.alloc.filter(a => a.party.allocate));
-  v.alloc.sort((a, b) => a.alloc != b.alloc ? b.alloc - a.alloc
-                                            : b.count - a.count);
-  v.alloc.forEach(a => {
-    if (a.alloc) a.party.isOther = false;
+  // Sum the votes for all constituencies in order to apply the threshold.
+  // Peruvian rules technically require that a complete allocation be
+  // without the threshold because the threshold applies to either
+  // popular vote or number of elected representatives. The second
+  // barrier has never been achieved, and indeed it would be difficult,
+  // but really we should do this correctly.
+  var total = data.reduce((p,c)=>p.accum(c), new Vote("Total"))
+  total.alloc.forEach(a => {
+    a.party.allocate = a.count >= total.valid * threshold;
+    a.party.isOther = a.count < total.valid * other_threshold;
   });
-});
+  total.alloc.sort((a,b) => b.count - a.count);
 
-// Recompute the total so that it contains the sum of the allocations.
-total = data.reduce((p, c) => p.accum(c), new Vote("Perú"));
+  data.forEach(v => {
+    v.alloc.forEach(a => a.alloc = 0);
+    method(v.magnitude, v.alloc.filter(a => a.party.allocate));
+    v.alloc.sort((a, b) => a.alloc != b.alloc ? b.alloc - a.alloc
+                                              : b.count - a.count);
+    v.alloc.forEach(a => {
+      if (a.alloc) a.party.isOther = false;
+    });
+  });
 
-// Mark irrelevant parties as "otro"
-var otros = { party: otro, alloc: 0, count: 0 };
-total.alloc.forEach(a => {
-  if (a.party.isOther) otros.count += a.count;
-});
-total.alloc.push(otros);
-data.forEach(v => {
-  let otros = { party: otro, alloc: 0, count: 0 };
-  v.alloc.forEach(a => {
+  // Recompute the total so that it contains the sum of the allocations.
+  total = data.reduce((p, c) => p.accum(c), new Vote("Perú"));
+
+  // Mark irrelevant parties as "otro"
+  var otros = { party: otro, alloc: 0, count: 0 };
+  total.alloc.forEach(a => {
     if (a.party.isOther) otros.count += a.count;
   });
-  v.alloc.push(otros);
+  total.alloc.push(otros);
+  data.forEach(v => {
+    let otros = { party: otro, alloc: 0, count: 0 };
+    v.alloc.forEach(a => {
+      if (a.party.isOther) otros.count += a.count;
+    });
+    v.alloc.push(otros);
+  });
+  data.push(total); data.sort((a,b) => b.electors - a.electors)
+      </script>
+      <script>
+  // Now it's time to draw the charts.
+  // Based on http://bl.ocks.org/mbostock/4c5fad723c87d2fd8273
+
+  var legendSize = 20, legendPad = 2;
+
+  radius.domain([0, d3.max(data, d => d.valid)]);
+
+  var parties = total.alloc.filter(a => !a.party.isOther);
+  var legend = d3.select("body").append("svg")
+        .attr("class", "legend")
+        .attr("width", 120)
+        .attr("height", legendSize * parties.length)
+      .selectAll("g")
+         .data(parties)
+      .enter().append("g")
+         .attr("transform", (d, i) => "translate(0," + i * legendSize + ")");
+  legend.append("rect")
+      .attr("width", legendSize - legendPad)
+      .attr("height", legendSize - legendPad)
+      .style("fill", d => d.party.colour);
+
+  legend.append("text")
+      .attr("x", legendSize + 2 * legendPad)
+      .attr("y", (legendSize - legendPad) / 2)
+      .attr("dy", ".35em")
+      .text(d => d.party.name);
+
+  var svg = d3.select("body").selectAll(".pie")
+        .data(data)
+      .enter().append("svg")
+        .attr("class", "pie")
+        .each(multiple)
+      .select("g")
+
+  var label = svg.append("text")
+      .attr("class", "label");
+  label.append("tspan")
+      .attr("class", "label-name")
+      .attr("x", 0)
+      .attr("dy", ".35em")
+      .text(d => d.district);
+
+  function multiple(d) {
+    var r = radius(d.valid);
+    var svg = d3.select(this)
+          .attr("width", r * 2)
+          .attr("height", r * 2)
+        .append("g")
+          .attr("transform", "translate(" + r + "," + r + ")");
+    svg.selectAll(".arc")
+      .data(v => pie(v.alloc.filter(a => !a.party.isOther)))
+      .enter().append("path")
+        .attr("class", "arc")
+        .attr("d", arc.outerRadius(r).innerRadius(r * 0.6))
+        .style("fill", a => a.data.party.colour)
+  } 
 });
-data.push(total); data.sort((a,b) => b.electors - a.electors)
-    </script>
-    <script>
-// Now it's time to draw the charts.
-// Based on http://bl.ocks.org/mbostock/4c5fad723c87d2fd8273
-
-var legendSize = 20, legendPad = 2;
-
-radius.domain([0, d3.max(data, d => d.valid)]);
-
-var parties = total.alloc.filter(a => !a.party.isOther);
-var legend = d3.select("body").append("svg")
-      .attr("class", "legend")
-      .attr("width", 120)
-      .attr("height", legendSize * parties.length)
-    .selectAll("g")
-       .data(parties)
-    .enter().append("g")
-       .attr("transform", (d, i) => "translate(0," + i * legendSize + ")");
-legend.append("rect")
-    .attr("width", legendSize - legendPad)
-    .attr("height", legendSize - legendPad)
-    .style("fill", d => d.party.colour);
-
-legend.append("text")
-    .attr("x", legendSize + 2 * legendPad)
-    .attr("y", (legendSize - legendPad) / 2)
-    .attr("dy", ".35em")
-    .text(d => d.party.name);
-
-var svg = d3.select("body").selectAll(".pie")
-      .data(data)
-    .enter().append("svg")
-      .attr("class", "pie")
-      .each(multiple)
-    .select("g")
-
-var label = svg.append("text")
-    .attr("class", "label");
-label.append("tspan")
-    .attr("class", "label-name")
-    .attr("x", 0)
-    .attr("dy", ".35em")
-    .text(d => d.district);
-
-function multiple(d) {
-  var r = radius(d.valid);
-  var svg = d3.select(this)
-        .attr("width", r * 2)
-        .attr("height", r * 2)
-      .append("g")
-        .attr("transform", "translate(" + r + "," + r + ")");
-  svg.selectAll(".arc")
-    .data(v => pie(v.alloc.filter(a => !a.party.isOther)))
-    .enter().append("path")
-      .attr("class", "arc")
-      .attr("d", arc.outerRadius(r).innerRadius(r * 0.6))
-      .style("fill", a => a.data.party.colour)
-} 
 
     </script> 
   </body>

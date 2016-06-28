@@ -1,15 +1,18 @@
-  { onpe: "ACCION POPULAR", name: "Acción Popular", colour: "black"},
-  { onpe: "ALIANZA PARA EL PROGRESO DEL PERU", name: "APP", colour: "#0029cf"},
-  { onpe: "ALIANZA POPULAR", name: "APRA+PPC", colour: "#1eff1f"},
-  { onpe: "DEMOCRACIA DIRECTA", name: "Democracia Directa", colour: "#fdfe02"},
-  { onpe: "EL FRENTE AMPLIO POR JUSTICIA, VIDA Y LIBERTAD", name: "Frente Amplio", colour: "red"},
-  { onpe: "FRENTE ESPERANZA", name: "Frente Esperanza"},
-  { onpe: "FUERZA POPULAR", name: "Fuerza Popular", colour: "#fe6500"},
-  { onpe: "PARTIDO POLITICO ORDEN", name: "Orden"},
-  { onpe: "PERU POSIBLE", name: "Perú Posible"},
-  { onpe: "PERUANOS POR EL KAMBIO", name: "PPK", colour: "#fe00dc"},
-  { onpe: "PROGRESANDO PERU", name: "Progresando Perú"}
-], [
+{
+  "partidos": [
+  { "onpe": "ACCION POPULAR", "name": "Acción Popular", "colour": "black"},
+  { "onpe": "ALIANZA PARA EL PROGRESO DEL PERU", "name": "APP", "colour": "#0029cf"},
+  { "onpe": "ALIANZA POPULAR", "name": "APRA+PPC", "colour": "#1eff1f"},
+  { "onpe": "DEMOCRACIA DIRECTA", "name": "Democracia Directa", "colour": "#fdfe02"},
+  { "onpe": "EL FRENTE AMPLIO POR JUSTICIA, VIDA Y LIBERTAD", "name": "Frente Amplio", "colour": "red"},
+  { "onpe": "FRENTE ESPERANZA", "name": "Frente Esperanza"},
+  { "onpe": "FUERZA POPULAR", "name": "Fuerza Popular", "colour": "#fe6500"},
+  { "onpe": "PARTIDO POLITICO ORDEN", "name": "Orden"},
+  { "onpe": "PERU POSIBLE", "name": "Perú Posible"},
+  { "onpe": "PERUANOS POR EL KAMBIO", "name": "PPK", "colour": "#fe00dc"},
+  { "onpe": "PROGRESANDO PERU", "name": "Progresando Perú"}
+],
+  "distritos": [
   ["Amazonas", [270175, 36837, 37727],
      [6233, 10220, 11992, 8565, 14845, null, 51067, null, null, 14489, 1531]],
   ["Áncash", [831235, 116102, 145961],
