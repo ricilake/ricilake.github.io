@@ -30,7 +30,7 @@ var method = dhondt; // or sainteLague
 var threshold = 0.05;
 // TODO: apportionment method
 var total_magnitude = 130;
-var other_threshold = 0.01; // Parties whose vote is less than this are "other".
+var other_threshold = 0.03; // Parties whose vote is less than this are "other".
 
 var otro = { name: "Otros", colour: "#b0b0b0" };
 
@@ -71,7 +71,6 @@ d3.json("cong2016.json", (error, election) => {
     a.party.allocate = a.count >= total.valid * threshold;
     a.party.isOther = a.count < total.valid * other_threshold;
   });
-  total.alloc.sort((a,b) => b.count - a.count);
 
   data.forEach(v => {
     v.alloc.forEach(a => a.alloc = 0);
@@ -85,6 +84,7 @@ d3.json("cong2016.json", (error, election) => {
 
   // Recompute the total so that it contains the sum of the allocations.
   total = data.reduce((p, c) => p.accum(c), new Vote("Perú"));
+  total.alloc.sort((a,b) => b.count - a.count);
 
   // Mark irrelevant parties as "otro"
   var otros = { party: otro, alloc: 0, count: 0 };
@@ -99,7 +99,7 @@ d3.json("cong2016.json", (error, election) => {
     });
     v.alloc.push(otros);
   });
-  data.push(total); data.sort((a,b) => b.electors - a.electors)
+  data.push(total); data.sort((a,b) => b.valid - a.valid)
 
   // Now it's time to draw the charts.
   // Based on http://bl.ocks.org/mbostock/4c5fad723c87d2fd8273
