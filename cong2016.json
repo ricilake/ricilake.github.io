@@ -1,6 +1,6 @@
 {
   "partidos": [
-  { "onpe": "ACCION POPULAR", "name": "Acción Popular", "colour": "lightred"},
+  { "onpe": "ACCION POPULAR", "name": "Acción Popular", "colour": "darkred"},
   { "onpe": "ALIANZA PARA EL PROGRESO DEL PERU", "name": "APP", "colour": "#0029cf"},
   { "onpe": "ALIANZA POPULAR", "name": "APRA+PPC", "colour": "#1eff1f"},
   { "onpe": "DEMOCRACIA DIRECTA", "name": "Democracia Directa", "colour": "#fdfe02"},
