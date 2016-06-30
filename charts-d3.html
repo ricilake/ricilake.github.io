@@ -26,12 +26,39 @@
     <script src="http://ricilake.github.io/apportion.js" type="text/javascript"></script>
     <script type="text/javascript">
 // variables. These should map to a form somewhere
-var method = dhondt; // or sainteLague
-var threshold = 0.05;
-// TODO: apportionment method
-var total_magnitude = 130;
-var other_threshold = 0.03; // Parties whose vote is less than this are "other".
+var voteThreshold = 0.05;
+var seatThreshold = 7;
+var apportionMethod = (N, d, c, a) => apportionWithBase(hare, 1, N, d, c, a);
+var electMethod = dhondt;
+var totalMagnitude = 130;
+    </script>
+    <div id="legend-holder"><svg class="legend" width=120></svg></div>
+    <div id="total-holder"></div>
+    <div id="aggregates-holder"></div>
+    <div id="details-holder"></div>
+    <div id="settings">
+      <form>
+        <label>Número de escaños
+          <input id=totalMagnitude type=number value=130 min=1 onchange=recompute>
+        </label>
+        <label>Método para asignar escaños a regiones
+          <select id=apportionMethod onchange=recompute>
+            <option value=hareWithBase selected>Un escaño por región; demás por método de Hare</option>
+            <option value=sainteLagueWithMinimum>Método Sainte-Laguë con un mínimo un escaño por región</option>
+          </select>
+        </label>
+        <label>Valla (%)
+          <input id=voteThreshold type=number value=5 min=0 max=10 onchange=recompute>
+        </label>
+        <label>Valla (escaños)
+          <input id=seatThreshold type=number value=7 min=0 onchange=recompute>
+        </label>
+      </form>
+    </div>
+    <script type="text/javascript">
+var otherThreshold = 0.03; // Parties whose vote is less than this are "other".
 
+// Stuff which doesn't change even when we change settings.
 var otro = { name: "Otros", colour: "#b0b0b0" };
 
 var radius = d3.scaleSqrt()
@@ -46,89 +73,142 @@ var arc = d3.arc().padRadius(50);
 // TODO: remove otro from the data, or create a new vector every time. Or
 // something.
 
-d3.json("cong2016.json", (error, election) => {
+
+// The `base` function must work both before and after allocation.
+// So you cannot assign the base allocation to the `alloc` field.
+function apportionWithBase(method, base, N, districts, count, alloc) {
+  if (base instanceof Function) {
+    var m = districts.reduce((p,c) => p + base(c), 0);
+    method(N - m, districts, count, alloc);
+    districts.forEach(d => d[alloc] += base(d));
+  } else {
+    method(N - base * districts.length, districts, count, alloc);
+    districts.forEach(d => d[alloc] += base;
+  }
+}
+
+// Largest-remainder methods are not monotonic, and computing an allocation
+// with a guaranteed minimum for each district might end up producing a
+// paradoxical result. But the procedure provided here will at least
+// always terminate. We try the allocation. Then we remove any districts which 
+// fail to meet their minimum (and optionally, which just meet their minimum)
+// (along with their counts, so the quotient will change). We then retry the
+// allocation with the magnitude adjusted by the assigned seats. If necessary,
+// the procedure is repeated until all districts achieve their minimum
+// allocation.
+//   If no district is *too* small (that is, the integer quotient of its
+// count by the standard divisor at least one less than its minimum),
+// then an alternative and more stable algorithm would be to simply
+// order remainders so that the districts failing to achieve their
+// minima are first in the list to receive the secondary allocation.
+// However, this would not work in Spain, where about six provinces (out of 50)
+// have populations less than a single Hare quota (and the minimum is two).
+//   For largest quotient methods, minima are trivial; they are simply
+// pre-allocated. Some of these pre-allocated seats will not meet the
+// computed quotient, but the solution is monotonic. I'd personally prefer
+// to use Sainte-Laguë with a minimum than try to force Hare to do it.
+function apportionWithMinimum(method, min, N, districts, count, alloc) {
+  var getmin = min instanceof Function ? min : () => min;
+  method(N, districts, count, alloc);
+  var thisAlloc = districts
+  do {
+    var nextAlloc = [], minApplied = false;
+    method(needed, toAlloc, count, alloc);
+    districts.forEach(d => {
+      var b = getmin(d);
+      if (d[alloc] < b) { d[alloc] = b; N -= b; minApplied = true; }
+      else nextAlloc.push(d);
+    } 
+    thisAlloc = nextAlloc;
+  } while (minApplied);
+}
+  
+function apportion(election, 
+                   magnitude,
+                   districtApportionmentMethod,
+                   districtApportionmentBasis, /* population, electors, etc. */
+                   seatApportionmentMethod,
+                   threshold) {
+  districtApportionmentMethod(magnitude, election, districtApportionmentBasis, "magnitude");
+  // Peruvian rules. Do a trial allocation, and see who is really excluded.
+  election.forEach(v => {
+    v.alloc.forEach(a => a.alloc = 0);
+    seatApportionmentMethod(v.magnitude, v.alloc, "count", "alloc");
+  });
+  // Get the totals for each party to check the thresholds
+  var total = aggregate(election);
+  // Technically, the seat threshold requires the party to be represented
+  // in two districts. That's not yet implemented.
+  // Mark the parties which will participate in the actual apportionment
+  total.alloc.forEach(a => {
+    a.party.allocate = (
+      a.count >= total.valid * threshold.voteThreshold ||
+      a.alloc >= threshold.seatThreshold
+    )
+  });
+  // Redo the apportionament filtering out those who didn't pass.
+  election.forEach(v => {
+    v.alloc.forEach(a => a.alloc = 0);
+    seatApportionmentMethod(v.magnitude,
+                            v.alloc.filter(a => a.allocate),
+                            "count", "alloc");
+  });
+}
+
+function aggregate(election, filter = () => true, name = "Total") {
+  return election.reduce((p, c) => filter(c) ? p.accum(c) : p, new Vote(name));
+}
+
+d3.json("http://ricilake.github.io/cong2016.json", (error, election) => {
   if (error) throw(error);
   data = election.distritos.map(
     distrito => new Vote(distrito[0],
                          election.partidos,
                          distrito[1],
                          distrito[2]))
-  // The apportionment rule is "give every constituency one representative
-  // and then apportion the rest proportionally." Clearly, that gives a
-  // noticeable apportionment bias to the small constituencies.
-  // TODO: modify hare to allow for both the freebie and the minimum strategies.
-  hare(total_magnitude - data.length, data, "electors", "magnitude")
-  data.forEach(v => ++v.magnitude);
+  apportion(data, totalMagnitude,
+            apportionMethod, "electors",
+            electMethod, {voteThreshold: voteThreshold,
+                          seatThreshold: seatThreshold});
+  
+  function pieOrder(a, b) {
+    return a.alloc != b.alloc ? b.alloc - a.alloc
+                              : b.count - a.count);
+  }
+  var total = aggregate(data);
+  total.alloc.sort(pieOrder);
+  data.forEach(v => v.alloc.sort(pieOrder));
+  data.sort((a,b) => b.valid - a.valid)
 
-  // Sum the votes for all constituencies in order to apply the threshold.
-  // Peruvian rules technically require that a complete allocation be
-  // without the threshold because the threshold applies to either
-  // popular vote or number of elected representatives. The second
-  // barrier has never been achieved, and indeed it would be difficult,
-  // but really we should do this correctly.
-  var total = data.reduce((p,c)=>p.accum(c), new Vote("Total"))
-  total.alloc.forEach(a => {
-    a.party.allocate = a.count >= total.valid * threshold;
-    a.party.isOther = a.count < total.valid * other_threshold;
-  });
-
-  data.forEach(v => {
-    v.alloc.forEach(a => a.alloc = 0);
-    method(v.magnitude, v.alloc.filter(a => a.party.allocate));
-    v.alloc.sort((a, b) => a.alloc != b.alloc ? b.alloc - a.alloc
-                                              : b.count - a.count);
-    v.alloc.forEach(a => {
-      if (a.alloc) a.party.isOther = false;
-    });
-  });
-
-  // Recompute the total so that it contains the sum of the allocations.
-  total = data.reduce((p, c) => p.accum(c), new Vote("Perú"));
-  total.alloc.sort((a,b) => b.count - a.count);
-
-  // Mark irrelevant parties as "otro"
-  var otros = { party: otro, alloc: 0, count: 0 };
-  total.alloc.forEach(a => {
-    if (a.party.isOther) otros.count += a.count;
-  });
-  total.alloc.push(otros);
-  data.forEach(v => {
-    let otros = { party: otro, alloc: 0, count: 0 };
-    v.alloc.forEach(a => {
-      if (a.party.isOther) otros.count += a.count;
-    });
-    v.alloc.push(otros);
-  });
-  data.push(total); data.sort((a,b) => b.valid - a.valid)
-
-  // Now it's time to draw the charts.
   // Based on http://bl.ocks.org/mbostock/4c5fad723c87d2fd8273
-
   var legendSize = 20, legendPad = 2;
-
   radius.domain([0, d3.max(data, d => d.valid)]);
 
-  var parties = total.alloc.filter(a => !a.party.isOther);
-  var legend = d3.select("body").append("svg")
-        .attr("class", "legend")
-        .attr("width", 120)
-        .attr("height", legendSize * parties.length)
-      .selectAll("g")
-         .data(parties)
-      .enter().append("g")
-         .attr("transform", (d, i) => "translate(0," + i * legendSize + ")");
-  legend.append("rect")
-      .attr("width", legendSize - legendPad)
-      .attr("height", legendSize - legendPad)
-      .style("fill", d => d.party.colour);
+  var legend = d3.select(".legend").selectAll("g")
+      .data(total.alloc.filter(a => a.alloc ||
+                               a.count >= total.valid * otherThreshold)
+                       .push(otros),
+            a => a.party.name)
+  d3.select(".legend").attr("width", legendSize * legend.size);
 
-  legend.append("text")
-      .attr("x", legendSize + 2 * legendPad)
-      .attr("y", (legendSize - legendPad) / 2)
-      .attr("dy", ".35em")
-      .text(d => d.party.name);
+  legend.enter().append("g")
+          .each( (d, i) => {
+                   d3.select(this)
+                     .append("rect")
+                     .attr("width", legendSize - legendPad)
+                     .attr("height", legendSize - legendPad)
+                     .style("fill", d => d.party.colour);
+                   d3.select(this)
+                     .append("text")
+                       .attr("x", legendSize + 2 * legendPad)
+                       .attr("y", (legendSize - legendPad) / 2)
+                       .attr("dy", ".35em")
+                     .text(d => d.party.name);
+                 });
+  legend.exit().remove();
+  legend.attr("transform", (d, i) => "translate(0," + i * legendSize + ")");
 
-  var svg = d3.select("body").selectAll(".pie")
+  var svg = d3.select(".details-holder").selectAll(".pie")
         .data(data)
       .enter().append("svg")
         .attr("class", "pie")
@@ -156,6 +236,7 @@ d3.json("cong2016.json", (error, election) => {
         .attr("class", "arc")
         .attr("d", arc.outerRadius(r).innerRadius(r * 0.6))
         .style("fill", a => a.data.party.colour)
+        .style("fill-opacity", a => a.data.alloc ? 1.0 : 0.2);
   } 
 });
 
