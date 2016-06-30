@@ -83,7 +83,7 @@ function apportionWithBase(method, base, N, districts, count, alloc) {
     districts.forEach(d => d[alloc] += base(d));
   } else {
     method(N - base * districts.length, districts, count, alloc);
-    districts.forEach(d => d[alloc] += base;
+    districts.forEach(d => d[alloc] += base);
   }
 }
 
@@ -159,22 +159,17 @@ function aggregate(election, filter = () => true, name = "Total") {
   return election.reduce((p, c) => filter(c) ? p.accum(c) : p, new Vote(name));
 }
 
-d3.json("http://ricilake.github.io/cong2016.json", (error, election) => {
-  if (error) throw(error);
-  data = election.distritos.map(
-    distrito => new Vote(distrito[0],
-                         election.partidos,
-                         distrito[1],
-                         distrito[2]))
+function pieOrder(a, b) {
+  return a.alloc != b.alloc ? b.alloc - a.alloc
+                            : b.count - a.count);
+}
+
+function recompute() {
   apportion(data, totalMagnitude,
             apportionMethod, "electors",
             electMethod, {voteThreshold: voteThreshold,
                           seatThreshold: seatThreshold});
   
-  function pieOrder(a, b) {
-    return a.alloc != b.alloc ? b.alloc - a.alloc
-                              : b.count - a.count);
-  }
   var total = aggregate(data);
   total.alloc.sort(pieOrder);
   data.forEach(v => v.alloc.sort(pieOrder));
@@ -187,7 +182,7 @@ d3.json("http://ricilake.github.io/cong2016.json", (error, election) => {
   var legend = d3.select(".legend").selectAll("g")
       .data(total.alloc.filter(a => a.alloc ||
                                a.count >= total.valid * otherThreshold)
-                       .push(otros),
+                       .push(otro),
             a => a.party.name)
   d3.select(".legend").attr("width", legendSize * legend.size);
 
@@ -231,15 +226,27 @@ d3.json("http://ricilake.github.io/cong2016.json", (error, election) => {
         .append("g")
           .attr("transform", "translate(" + r + "," + r + ")");
     svg.selectAll(".arc")
-      .data(v => pie(v.alloc.filter(a => !a.party.isOther)))
+      .data(v => pie(v.alloc.filter(a => !a.party.isOther)),
+            a => a.data.party.name)
       .enter().append("path")
         .attr("class", "arc")
         .attr("d", arc.outerRadius(r).innerRadius(r * 0.6))
         .style("fill", a => a.data.party.colour)
         .style("fill-opacity", a => a.data.alloc ? 1.0 : 0.2);
   } 
+  return false;
+}
+d3.json("http://ricilake.github.io/cong2016.json",
+  (error, election) => {
+    if (error) throw(error);
+    data = election.distritos.map(
+      distrito => new Vote(distrito[0],
+                           election.partidos,
+                           distrito[1],
+                           distrito[2]))
+    recompute();
+  }
 });
-
     </script> 
   </body>
 </html>
