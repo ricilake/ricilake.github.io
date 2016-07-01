@@ -2,7 +2,7 @@
   "partidos": [
   { "onpe": "ACCION POPULAR", "name": "Acción Popular", "colour": "red"},
   { "onpe": "ALIANZA PARA EL PROGRESO DEL PERU", "name": "APP", "colour": "#0029cf"},
-  { "onpe": "ALIANZA POPULAR", "name": "APRA+PPC", "colour": ["#red", "#green"]},
+  { "onpe": "ALIANZA POPULAR", "name": "APRA+PPC", "colour": ["red", "green"]},
   { "onpe": "DEMOCRACIA DIRECTA", "name": "Democracia Directa", "colour": "#fdfe02"},
   { "onpe": "EL FRENTE AMPLIO POR JUSTICIA, VIDA Y LIBERTAD", "name": "Frente Amplio", "colour": "green"},
   { "onpe": "FRENTE ESPERANZA", "name": "Frente Esperanza", "colour":["blue", "lightblue"]},
