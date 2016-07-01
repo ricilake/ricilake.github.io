@@ -1,14 +1,14 @@
 {
   "partidos": [
-  { "onpe": "ACCION POPULAR", "name": "Acción Popular", "colour": "darkred"},
+  { "onpe": "ACCION POPULAR", "name": "Acción Popular", "colour": "red"},
   { "onpe": "ALIANZA PARA EL PROGRESO DEL PERU", "name": "APP", "colour": "#0029cf"},
-  { "onpe": "ALIANZA POPULAR", "name": "APRA+PPC", "colour": "#1eff1f"},
+  { "onpe": "ALIANZA POPULAR", "name": "APRA+PPC", "colour": ["#red", "#green"]},
   { "onpe": "DEMOCRACIA DIRECTA", "name": "Democracia Directa", "colour": "#fdfe02"},
-  { "onpe": "EL FRENTE AMPLIO POR JUSTICIA, VIDA Y LIBERTAD", "name": "Frente Amplio", "colour": "red"},
-  { "onpe": "FRENTE ESPERANZA", "name": "Frente Esperanza"},
+  { "onpe": "EL FRENTE AMPLIO POR JUSTICIA, VIDA Y LIBERTAD", "name": "Frente Amplio", "colour": "green"},
+  { "onpe": "FRENTE ESPERANZA", "name": "Frente Esperanza", "colour":["blue", "lightblue"]},
   { "onpe": "FUERZA POPULAR", "name": "Fuerza Popular", "colour": "#fe6500"},
-  { "onpe": "PARTIDO POLITICO ORDEN", "name": "Orden"},
-  { "onpe": "PERU POSIBLE", "name": "Perú Posible"},
+  { "onpe": "PARTIDO POLITICO ORDEN", "name": "Orden", "colour": ["black", "white"]},
+  { "onpe": "PERU POSIBLE", "name": "Perú Posible", "colour": ["#efdf1a", "#026700"]},
   { "onpe": "PERUANOS POR EL KAMBIO", "name": "PPK", "colour": "#fe00dc"},
   { "onpe": "PROGRESANDO PERU", "name": "Progresando Perú"}
 ],

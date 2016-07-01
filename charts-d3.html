@@ -32,6 +32,7 @@ var apportionMethod = (N, d, c, a) => apportionWithBase(hare, 1, N, d, c, a);
 var electMethod = dhondt;
 var totalMagnitude = 130;
     </script>
+    <svg><defs id="colour-pattern-definitions"></def></svg>
     <div id="legend-holder"><svg class="legend" width=120></svg></div>
     <div id="total-holder"></div>
     <div id="aggregates-holder"></div>
@@ -39,7 +40,7 @@ var totalMagnitude = 130;
     <div id="settings">
       <form>
         <label>Número de escaños
-          <input id=totalMagnitude type=number value=130 min=1 onchange=recompute>
+          <input id=totalMagnitude type=number value=130 min=1 onchange="return recompute()">
         </label>
         <label>Método para asignar escaños a regiones
           <select id=apportionMethod onchange=recompute>
@@ -118,7 +119,7 @@ function apportionWithMinimum(method, min, N, districts, count, alloc) {
       var b = getmin(d);
       if (d[alloc] < b) { d[alloc] = b; N -= b; minApplied = true; }
       else nextAlloc.push(d);
-    } 
+    }); 
     thisAlloc = nextAlloc;
   } while (minApplied);
 }
@@ -150,7 +151,7 @@ function apportion(election,
   election.forEach(v => {
     v.alloc.forEach(a => a.alloc = 0);
     seatApportionmentMethod(v.magnitude,
-                            v.alloc.filter(a => a.allocate),
+                            v.alloc.filter(a => a.party.allocate),
                             "count", "alloc");
   });
 }
@@ -160,11 +161,72 @@ function aggregate(election, filter = () => true, name = "Total") {
 }
 
 function pieOrder(a, b) {
-  return a.alloc != b.alloc ? b.alloc - a.alloc
-                            : b.count - a.count);
+  return a.alloc != b.alloc
+            ? b.alloc - a.alloc
+            : b.count - a.count;
 }
 
+// Every party gets its own pattern, even if the patterns are just solid blocks.
+// That makes it really easy to change the colour on the fly. That means that
+// every party needs a consistent ID; we just assign a number when we read
+// the data, and give a new number if necessary. It might be better to manually
+// assign them in the input data.
+
+addPartyColours = (() => {
+  const svgNS = "http://www.w3.org/2000/svg";
+  var nparty = 1;
+  return data => {
+    var defs = document.getElementById("colour-pattern-definitions");
+    data.forEach(d => { d.alloc.forEach( a => {
+      var party = a.party;                                   
+      if (!("id" in party)) {
+        party.id = "party" + nparty++;
+        var colour1 = "black", colour2 = "white";
+        if ("colour" in party) {
+          if (party.colour instanceof Array) {
+            colour1 = party.colour[0];
+            colour2 = party.colour[2];
+          } else {
+            colour1 = colour2 = party.colour;
+          }
+        }
+
+        var pattern = document.createElementNS(svgNS, "pattern");
+        pattern.setAttribute("id", "colour-pattern-" + party.id);
+        pattern.setAttribute("x", "0");
+        pattern.setAttribute("y", "0");
+        pattern.setAttribute("width", "8");
+        pattern.setAttribute("height", "8");
+        pattern.setAttribute("patternUnits", "userSpaceOnUse");
+        pattern.setAttribute("patternTransform", "rotate(30)");
+
+        var rect = document.createElementNS(svgNS, "rect");
+        rect.setAttribute("x", "0");
+        rect.setAttribute("y", "0");
+        rect.setAttribute("width", "8");
+        rect.setAttribute("height", "8");
+        rect.setAttribute("style", "stroke:none");
+        rect.setAttribute("fill", colour2);
+        pattern.appendChild(rect);
+
+        rect = document.createElementNS(svgNS, "rect");
+        rect.setAttribute("x", "4");
+        rect.setAttribute("y", "0");
+        rect.setAttribute("width", "4");
+        rect.setAttribute("height", "8");
+        rect.setAttribute("style", "stroke:none");
+        rect.setAttribute("fill", colour1);
+        pattern.appendChild(rect);
+
+        defs.appendChild(pattern);
+        
+        party.colour = "url(#colour-pattern-" + party.id + ")";
+      }
+    });});
+  }})();
+
 function recompute() {
+  totalMagnitude = +document.getElementById("totalMagnitude").value;
   apportion(data, totalMagnitude,
             apportionMethod, "electors",
             electMethod, {voteThreshold: voteThreshold,
@@ -180,14 +242,14 @@ function recompute() {
   radius.domain([0, d3.max(data, d => d.valid)]);
 
   var legend = d3.select(".legend").selectAll("g")
-      .data(total.alloc.filter(a => a.alloc ||
-                               a.count >= total.valid * otherThreshold)
-                       .push(otro),
+      .data(((a,b)=>{a.push(b); return a})(
+              total.alloc.filter(a => a.alloc ||
+                                 a.count >= total.valid * otherThreshold),
+              { party: otro } ),
             a => a.party.name)
-  d3.select(".legend").attr("width", legendSize * legend.size);
 
   legend.enter().append("g")
-          .each( (d, i) => {
+          .each( function(d, i) {
                    d3.select(this)
                      .append("rect")
                      .attr("width", legendSize - legendPad)
@@ -201,10 +263,11 @@ function recompute() {
                      .text(d => d.party.name);
                  });
   legend.exit().remove();
+  d3.select(".legend").attr("height", legendSize * legend.size());
   legend.attr("transform", (d, i) => "translate(0," + i * legendSize + ")");
 
-  var svg = d3.select(".details-holder").selectAll(".pie")
-        .data(data)
+  var svg = d3.select("#details-holder").selectAll(".pie")
+      .data(data, d => d.district)
       .enter().append("svg")
         .attr("class", "pie")
         .each(multiple)
@@ -236,6 +299,7 @@ function recompute() {
   } 
   return false;
 }
+var data;
 d3.json("http://ricilake.github.io/cong2016.json",
   (error, election) => {
     if (error) throw(error);
@@ -244,8 +308,8 @@ d3.json("http://ricilake.github.io/cong2016.json",
                            election.partidos,
                            distrito[1],
                            distrito[2]))
+    addPartyColours(data);
     recompute();
-  }
 });
     </script> 
   </body>
