@@ -1,0 +1,12 @@
+[ { "name":"SDP", "colour":"#f20516", "count": 9}
+, { "name":"DPS", "colour":"#e87b00", "count": 35}
+, { "name":"SNP", "colour":"#0402d5", "count": 16}
+, { "name":"HGI", "colour":"#f40681", "count": 1}
+, { "name":"BP", "colour":"#8AFB17", "count": 3}
+, { "name":"DS", "colour":"#f805cf", "count": 1}
+, { "name":"AA", "colour":"#02f8cb", "count": 1}
+, { "name":"FORCA", "colour":"#b2f803", "count": 1}
+, { "name":"PZP", "colour":"#06aff4", "count": 5}
+, { "name":"DUA", "colour":"#b2f803", "count": 1}
+, { "name":"NOVA", "colour":"#6a09d5", "count": 8}
+]
